@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@react-three/drei": "^9.5.3",
+    "@react-three/fiber": "^7.0.23",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.1.1",
     "@testing-library/user-event": "^13.5.0",
@@ -10,9 +12,14 @@
     "@types/node": "^16.11.27",
     "@types/react": "^18.0.6",
     "@types/react-dom": "^18.0.2",
+    "@types/three": "^0.139.0",
+    "framer-motion": "^6.3.1",
+    "framer-motion-3d": "^6.3.1",
+    "maath": "^0.0.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-scripts": "5.0.1",
+    "three": "^0.139.2",
     "typescript": "^4.6.3",
     "web-vitals": "^2.1.4"
   },

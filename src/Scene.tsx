@@ -6,15 +6,23 @@ import {
   Points,
   useAspect,
   Html,
+  meshBounds,
 } from "@react-three/drei";
-import { useThree, useFrame } from "@react-three/fiber";
+import { useThree, useFrame, Canvas } from "@react-three/fiber";
 import { degToRad } from "three/src/math/MathUtils";
 import { useEffect, useState, useRef } from "react";
 import * as THREE from "three";
-import { Mesh } from "three";
+import { Mesh, PerspectiveCamera } from "three";
+import gsap from "gsap";
+import { a, SpringValue } from "@react-spring/three";
+import { useSpring } from "@react-spring/core";
+// softShadows();
 
-softShadows();
-
+const layoutCameraSettings: { x: number; y: number; z: number } = {
+  x: 10,
+  y: 5,
+  z: 10,
+};
 export function Scene({
   isFullscreen,
   transitionDelay,
@@ -22,17 +30,22 @@ export function Scene({
   isFullscreen: boolean;
   transitionDelay: number;
 }) {
+  const camRef = useRef<PerspectiveCamera>(null!);
   return (
-    <MotionCanvas dpr={[1, 2]} shadows>
+    <MotionCanvas
+      dpr={[1, 2]}
+      shadows
+      // camera={{ fov: 10, position: [50, 0.25, 0] }}
+    >
       {/* @ts-ignore */}
       <LayoutCamera
+        // makeDefault={true}
         initial={false}
+        ref={camRef}
         animate={
           isFullscreen
             ? {
-                x: 10,
-                y: 5,
-                z: 10,
+                ...layoutCameraSettings,
                 // rotateY: degToRad(90),
                 //@ts-ignore
                 fov: 30,
@@ -40,12 +53,25 @@ export function Scene({
             : { x: 15, y: 0.25, z: 0, fov: 10 }
         }
       />
-      <Geometry transitionDelay={transitionDelay} isFullscreen={isFullscreen} />
-      <Lights isFullscreen={isFullscreen} />
+      <CanvasEl isFullscreen={isFullscreen} transitionDelay={transitionDelay} />
     </MotionCanvas>
   );
 }
-
+function CanvasEl({
+  isFullscreen,
+  transitionDelay,
+}: {
+  isFullscreen: boolean;
+  transitionDelay: number;
+}) {
+  return (
+    <>
+      <Geometry transitionDelay={transitionDelay} isFullscreen={isFullscreen} />
+      <Lights isFullscreen={isFullscreen} />
+      <primitive object={new THREE.AxesHelper(10)} />
+    </>
+  );
+}
 function Lights({ isFullscreen }: { isFullscreen: boolean }) {
   const three = useThree();
   useFrame(() => {
@@ -53,7 +79,7 @@ function Lights({ isFullscreen }: { isFullscreen: boolean }) {
   });
   return (
     <>
-      <Stats />
+      {/* <Stats /> */}
       <ambientLight intensity={0.2} />
       <pointLight position={[-10, -10, 10]} intensity={2} color="#ff20f0" />
       <pointLight
@@ -86,18 +112,73 @@ function Video({ url, delay = 0 }: { url: string; delay?: number }) {
     Object.assign(document.createElement("video"), {
       src: url,
       crossOrigin: "Anonymous",
-      loop: true,
+      // loop: true,
       muted: true,
     })
   );
-  useEffect(() => void setTimeout(() => video.play(), delay), [video]);
+  video.playsInline = true;
+  // video.playsinline = true;
+  useEffect(
+    () =>
+      void setTimeout(
+        () =>
+          video.play().then(() => {
+            setTimeout(() => {
+              video.pause();
+            }, 23000 + 5000 - delay);
+          }),
+        delay
+      ),
+    [video]
+  );
   return (
-    <meshBasicMaterial toneMapped={false}>
+    // @ts-ignore
+    <a.meshBasicMaterial toneMapped={false}>
       <videoTexture attach="map" args={[video]} encoding={THREE.sRGBEncoding} />
-    </meshBasicMaterial>
+    </a.meshBasicMaterial>
   );
 }
+type Props = {
+  url: string;
+  delay?: number;
+  position: any;
+  move: boolean;
+  [x: string]: any;
+};
+function Bubble(props: Props) {
+  let { url, delay, move, position, ...rest } = props;
 
+  // const increaseObjectSize = (object: THREE.Mesh) => {
+  //   object.scale.multiplyScalar(2);
+  // };
+  // const decreaseObjectSize = (object: THREE.Mesh) => {
+  //   object.scale.multiplyScalar(0.5);
+  // };
+  const { pos } = useSpring({
+    pos: move ? [3 * position[0], -1, -3 * position[0]] : position,
+    config: { mass: 5, tension: 100, friction: 50, precision: 0.0001 },
+  });
+  // The X axis is red. The Y axis is green. The Z axis is blue.
+
+  const ref = useRef<any>(null!);
+  return (
+    <>
+      {/* @ts-ignore */}
+      <a.mesh
+        receiveShadow
+        castShadow
+        ref={ref}
+        position={pos}
+        // onPointerEnter={() => increaseObjectSize(ref.current)}
+        // onPointerLeave={() => decreaseObjectSize(ref.current)}
+        {...rest}
+      >
+        <a.sphereBufferGeometry args={[0.6, 64, 64]} />
+        <Video url={url} delay={delay} />
+      </a.mesh>
+    </>
+  );
+}
 function Geometry({
   transitionDelay,
   isFullscreen,
@@ -105,59 +186,30 @@ function Geometry({
   transitionDelay: number;
   isFullscreen: boolean;
 }) {
-  const orangeRef = useRef<Mesh>(null!);
-  const swirlRef = useRef<Mesh>(null!);
-  useFrame(({ clock }) => {
-    // orangeRef.current.position.x = 5 * Math.cos(clock.getElapsedTime()) * -1;
-    // orangeRef.current.position.z = 5 * Math.sin(clock.getElapsedTime()) * -3;
-    // swirlRef.current.position.x = 5 * Math.cos(clock.getElapsedTime()) * 1;
-    // swirlRef.current.position.z = 5 * Math.sin(clock.getElapsedTime()) * 3;
-  });
+  // x: red, y: green, z: blue
+  const state = useThree();
+  const [move, setMove] = useState(false);
+  setTimeout(() => setMove(true), 14000);
+  transitionDelay += 1000;
   return (
     <>
-      {/* {isFullscreen ? (
-        // <group rotation={[0, 0, 0]}>
-        <Html className="test">
-          <h2>Software Development</h2>
-        </Html>
-      ) : (
-        // </group>
-        ""
-      )} */}
+      <Bubble url={"/white.mp4"} move={move} position={[0, 0, 0]} />
+      <Bubble
+        url={"/orange.mp4"}
+        move={move}
+        position={[-1, 0.9, -3]}
+        delay={transitionDelay}
+      />
 
-      <mesh receiveShadow castShadow>
-        <sphereBufferGeometry args={[0.75, 64, 64]} />
-        <Video url={"/white.mp4"} />
-        <Shadow
-          position-y={-0.79}
-          rotation-x={0}
-          opacity={0.6}
-          scale={[0.8, 0.8, 1]}
-        />
-      </mesh>
-
-      {/* @ts-ignore */}
-      <mesh receiveShadow castShadow position={[-1, 0.9, -3]} ref={orangeRef}>
-        <sphereBufferGeometry args={[0.75, 64, 64]} />
-        <Video url={"/orange.mp4"} delay={transitionDelay} />
-        <Shadow
-          position-y={-0.79}
-          rotation-x={-Math.PI / 4}
-          opacity={0.6}
-          scale={[0.8, 0.8, 1]}
-        />
-      </mesh>
-      {/* @ts-ignore */}
-      <mesh receiveShadow castShadow position={[1, -0.9, 3]} ref={swirlRef}>
-        <sphereBufferGeometry args={[0.75, 64, 64]} />
-        <Video url={"/abstract.mp4"} delay={transitionDelay} />
-        <Shadow
-          position-y={-0.79}
-          rotation-x={-Math.PI / 3}
-          opacity={0.6}
-          scale={[0.8, 0.8, 1]}
-        />
-      </mesh>
+      {/* <Bubble url={"/orange.mp4"} delay={transitionDelay} position={x} /> */}
+      <Bubble
+        url={"/abstract.mp4"}
+        position={[1, -0.9, 3]}
+        delay={transitionDelay}
+        move={move}
+        // rotation-y={Math.PI / 4}
+        rotation-x={Math.PI / 2}
+      />
     </>
   );
 }

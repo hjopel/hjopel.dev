@@ -61,7 +61,7 @@ body {
   z-index: 0;
 }
 
-[data-is-fullscreen="true"] .container {
+.container {
   position: fixed;
   top: 0;
   left: 0;
@@ -71,15 +71,19 @@ body {
   height: 100vh;
   /* z-index: -1; */
 }
-[data-is-fullscreen="true"] canvas {
-  /* position: fixed;
+/* [data-is-fullscreen="true"] canvas {
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0; */
+  bottom: 0;
   width: 100vw;
   height: 100vh;
-  /* z-index: -1; */
+  z-index: -1;
+} */
+canvas {
+  width: 100vw;
+  height: 100vh;
 }
 .stack {
   /* display: flex;
@@ -127,7 +131,7 @@ h2 {
   font-size: 36px;
   line-height: 1;
 }
-[data-is-fullscreen="true"] .header {
+.header {
   /* background-color: aqua; */
   position: fixed;
   top: 0;
@@ -140,7 +144,7 @@ h2 {
   justify-content: flex-start;
   flex-wrap: wrap;
 }
-[data-is-fullscreen="true"] .header2 {
+.header2 {
   /* background-color: aqua; */
   position: fixed;
   top: 100vw;

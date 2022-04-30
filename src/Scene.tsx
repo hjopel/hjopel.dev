@@ -1,4 +1,10 @@
-import { useAspect, Text, OrbitControls } from "@react-three/drei";
+import {
+  useAspect,
+  Text,
+  OrbitControls,
+  useTexture,
+  Reflector,
+} from "@react-three/drei";
 import {
   useThree,
   useFrame,
@@ -38,7 +44,6 @@ export function Scene({
   // canRef.
   return (
     <>
-      {/* <Canvas ref={canRef} camera={{ fov: 10, position: [15, 0.25, 0] }}> */}
       <Canvas ref={canRef} camera={{ fov: 10, position: [15, 0.25, 0] }}>
         {/* <CanvasEl
           isFullscreen={isFullscreen}
@@ -56,8 +61,11 @@ export function Scene({
         <Text fontSize={0.4} color="white" rotation={[0, Math.PI / 2, 0]}>
           web development.
         </Text> */}
+        <color attach="background" args={["black"]} />
+        <fog attach="fog" args={["black", 1, 15]} />
         <group rotation={[0, Math.PI / 2, 0]}>
           <SeaWrapper isFullscreen={isFullscreen} />
+          <Ground />
         </group>
         <OrbitControls />
         {/* <primitive object={new THREE.AxesHelper(10)} /> */}
@@ -89,7 +97,6 @@ type ExtProps = {
 
 function Sea() {
   const meshes: { mesh: any; props: ExtProps }[] = [],
-    materials: MeshLambertMaterial[] = [],
     xgrid = 20,
     ygrid = 10;
   const [video] = useState(() =>
@@ -197,6 +204,35 @@ function Sea() {
         )
         .flatMap((obj) => obj)}
     </>
+  );
+}
+function Ground() {
+  const [floor, normal] = useTexture([
+    "/SurfaceImperfections003_1K_var1.jpg",
+    "/SurfaceImperfections003_1K_Normal.jpg",
+  ]);
+  return (
+    <Reflector
+      blur={[400, 100]}
+      resolution={512}
+      args={[20, 20]}
+      mirror={0.5}
+      mixBlur={6}
+      mixStrength={1.5}
+      rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+      position={[0, -0.58, 0]}
+    >
+      {(Material: any, props: any) => (
+        <Material
+          color="#a0a0a0"
+          metalness={0.4}
+          roughnessMap={floor}
+          normalMap={normal}
+          normalScale={[2, 2]}
+          {...props}
+        />
+      )}
+    </Reflector>
   );
 }
 // function createMesh(i: number, j: number) {

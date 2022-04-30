@@ -5,14 +5,25 @@ import {
   Canvas,
   GroupProps,
   context,
+  MeshProps,
 } from "@react-three/fiber";
 import { degToRad } from "three/src/math/MathUtils";
 import React, { useEffect, useState, useRef } from "react";
 import * as THREE from "three";
-import { Mesh, PerspectiveCamera } from "three";
+import {
+  BoxBufferGeometry,
+  Material,
+  Mesh,
+  MeshLambertMaterial,
+  PerspectiveCamera,
+  VideoTexture,
+} from "three";
 import gsap from "gsap";
 import { a, AnimatedComponent, SpringValue } from "@react-spring/three";
 import { useSpring } from "@react-spring/core";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
+import { BlurPass, Resizer, KernelSize } from "postprocessing";
+
 // softShadows();
 
 export function Scene({
@@ -29,12 +40,12 @@ export function Scene({
     <>
       {/* <Canvas ref={canRef} camera={{ fov: 10, position: [15, 0.25, 0] }}> */}
       <Canvas ref={canRef} camera={{ fov: 10, position: [15, 0.25, 0] }}>
-        <CanvasEl
+        {/* <CanvasEl
           isFullscreen={isFullscreen}
           transitionDelay={transitionDelay}
           canvasRef={canRef}
-        />
-        <Text
+        /> */}
+        {/* <Text
           fontSize={0.1}
           color="white"
           position={[0, 0.25, 0]}
@@ -44,11 +55,170 @@ export function Scene({
         </Text>
         <Text fontSize={0.4} color="white" rotation={[0, Math.PI / 2, 0]}>
           web development.
-        </Text>
+        </Text> */}
+        <group rotation={[0, Math.PI / 2, 0]}>
+          <SeaWrapper isFullscreen={isFullscreen} />
+        </group>
         <OrbitControls />
+        {/* <primitive object={new THREE.AxesHelper(10)} /> */}
+        <EffectComposer>
+          <Bloom
+            intensity={1.0} // The bloom intensity.
+            luminanceThreshold={0.9} // luminance threshold. Raise this value to mask out darker elements in the scene.
+            luminanceSmoothing={0.025} // smoothness of the luminance threshold. Range is [0, 1
+          />
+        </EffectComposer>
       </Canvas>
     </>
   );
+}
+function SeaWrapper({ isFullscreen }: { isFullscreen: boolean }) {
+  return (
+    <>
+      <Lights isFullscreen={isFullscreen} />
+      <Sea />
+    </>
+  );
+}
+type ExtProps = {
+  dx: number;
+  dy: number;
+  hue: number;
+  saturation: number;
+};
+
+function Sea() {
+  const meshes: { mesh: any; props: ExtProps }[] = [],
+    materials: MeshLambertMaterial[] = [],
+    xgrid = 20,
+    ygrid = 10;
+  const [video] = useState(() =>
+    Object.assign(document.createElement("video"), {
+      src: "/sintel.mp4",
+      crossOrigin: "Anonymous",
+      loop: true,
+      muted: true,
+    })
+  );
+  video.addEventListener("play", function () {
+    this.currentTime = 3;
+  });
+  const vt = new THREE.VideoTexture(video);
+  let i, j, ox, oy, geometry, mesh;
+
+  const ux = 1 / xgrid;
+  const uy = 1 / ygrid;
+
+  const xsize = 480 / xgrid;
+  const ysize = 204 / ygrid;
+  const parameters = { color: 0xffffff, map: vt };
+
+  video.playsInline = true;
+  video.play();
+  let arr: number[] = [];
+  let arr2: number[] = [];
+  for (let i = 0; i < xgrid; i++) arr[i] = i;
+  for (let i = 0; i < ygrid; i++) arr2[i] = i;
+
+  let counter = 0;
+  let h;
+
+  useFrame(() => {
+    const time = Date.now() * 0.00005;
+
+    if (counter % 1000 > 200) {
+      for (let i = 0; i < meshes.length; i++) {
+        let material: any = myRef.current[i].material;
+        h = ((360 * (meshes[i].props.hue + time)) % 360) / 360;
+        material.color.setHSL(h, meshes[i].props.saturation, 0.5);
+        let mesh = myRef.current[i];
+        mesh.rotation.x += 10 * meshes[i].props.dx;
+        mesh.rotation.y += 10 * meshes[i].props.dy;
+        mesh.position.x -= 150 * 0.001 * meshes[i].props.dx;
+        mesh.position.y += 150 * 0.001 * meshes[i].props.dy;
+        mesh.position.z += 300 * 0.001 * meshes[i].props.dx;
+      }
+    }
+    if (counter % 1000 === 0) {
+      // if (counter === 1000) {
+      for (let i = 0; i < meshes.length; i++) {
+        meshes[i].props.dx *= -1;
+        meshes[i].props.dy *= -1;
+      }
+    }
+    counter++;
+  });
+  const material = new THREE.MeshLambertMaterial(parameters);
+  const myRef = useRef<Mesh[]>([]);
+  const addToRefs: (el: any) => void = (el) => {
+    if (el && !myRef.current.includes(el)) {
+      myRef.current.push(el);
+    }
+  };
+  return (
+    <>
+      {arr
+        .map((i) =>
+          arr2.map((j) => {
+            ox = i;
+            oy = j;
+            // const material = new THREE.MeshLambertMaterial(parameters);
+
+            let geo1 = new THREE.BoxBufferGeometry(xsize, ysize, xsize);
+            change_uvs(geo1, ux, uy, ox, oy);
+            material.color.setHSL(i / xgrid, 1 - j / ygrid, 0.5);
+
+            let mesh = (
+              <mesh
+                geometry={geo1}
+                material={material}
+                scale={0.005}
+                position={[
+                  (i - xgrid / 2) * xsize * 0.005,
+                  (j - ygrid / 2) * ysize * 0.005,
+                  0,
+                ]}
+                rotation={[0, 0, 0]}
+                key={`${i}${j}`}
+                ref={addToRefs}
+              />
+            );
+            meshes.push({
+              mesh,
+              props: {
+                dx: 0.001 * (0.5 - Math.random()),
+                dy: 0.001 * (0.5 - Math.random()),
+                hue: i / xgrid,
+                saturation: 1 - j / ygrid,
+              },
+            });
+            return mesh;
+          })
+        )
+        .flatMap((obj) => obj)}
+    </>
+  );
+}
+// function createMesh(i: number, j: number) {
+//   const ref = useRef<any>(null!);
+
+//   return <Text ref={ref}>hii</Text>;
+// }
+function change_uvs(
+  geometry: THREE.BoxGeometry,
+  unitx: number,
+  unity: number,
+  offsetx: number,
+  offsety: number
+) {
+  const help = geometry.getAttribute("uv");
+
+  for (let i = 0; i < help.array.length; i += 2) {
+    // @ts-ignore
+    help.array[i] = (help.array[i] + offsetx) * unitx;
+    // @ts-ignore
+    help.array[i + 1] = (help.array[i + 1] + offsety) * unity;
+  }
 }
 function CanvasEl({
   isFullscreen,
@@ -80,7 +250,7 @@ function Lights({ isFullscreen }: { isFullscreen: boolean }) {
     <>
       {/* <Stats /> */}
       <ambientLight intensity={0.2} />
-      <pointLight position={[-10, -10, 10]} intensity={2} color="#ff20f0" />
+      <pointLight position={[-10, -10, 10]} intensity={2} color="#ffffff" />
       <pointLight
         position={[0, 0.5, -1]}
         distance={1}
@@ -121,7 +291,7 @@ function Video({
     Object.assign(document.createElement("video"), {
       src: url,
       crossOrigin: "Anonymous",
-      // loop: true,
+      loop: true,
       muted: true,
     })
   );
@@ -160,7 +330,7 @@ type Props = {
   position: any;
   move: boolean;
   sizeUp: boolean;
-  canvasRef: any;
+  canvasRef?: any;
   [x: string]: any;
 };
 function Bubble(props: Props) {
@@ -207,7 +377,7 @@ function Geometry({
 }: {
   transitionDelay: number;
   isFullscreen: boolean;
-  canvasRef: any;
+  canvasRef?: any;
 }) {
   // x: red, y: green, z: blue
   const state = useThree();
